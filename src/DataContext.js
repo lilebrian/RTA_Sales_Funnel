@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState } from "react";
 export const DataContext = createContext();
 export const useData = () => useContext(DataContext);
 
-const SHEET_URL = "https://api.sheetbest.com/sheets/41f9d4f0-fd27-42c6-91ee-e349631a0ae7";
+const SHEET_URL = "https://api.sheetbest.com/sheets/0475a26b-34a0-4e41-b17d-5e513101983d";
 const stages = ["Outreach", "Connections", "Replies", "Meetings", "Proposals", "Contracts"];
 
 // Helper to format dates like "Jun 2025"
