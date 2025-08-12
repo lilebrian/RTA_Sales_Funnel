@@ -1,106 +1,88 @@
-import React, { createContext, useContext, useState } from "react";
+/* eslint-disable */
+import React, { createContext, useContext, useEffect, useState } from "react";
 
-export const DataContext = createContext();
-export const useData = () => useContext(DataContext);
+const API_URL = https://api.sheetbest.com/sheets/0475a26b-34a0-4e41-b17d-5e513101983d
+  typeof process !== "undefined" && process.env && process.env.REACT_APP_SHEETBEST_URL
+    ? process.env.REACT_APP_SHEETBEST_URL
+    : "PASTE_YOUR_SHEETBEST_URL";
 
-const SHEET_URL = "https://api.sheetbest.com/sheets/0475a26b-34a0-4e41-b17d-5e513101983d";
-const stages = ["Outreach", "Connections", "Replies", "Meetings", "Proposals", "Contracts"];
+const FIELDS = ["Outreach","Connections","Replies","Meetings","Proposals","Contracts"];
 
-// Helper to format dates like "Jun 2025"
-function formatMonthFromDateString(dateStr) {
-  const date = new Date(dateStr);
-  return date.toLocaleString("default", { month: "short", year: "numeric" });
+function norm(v){ return (v == null ? "" : String(v)).trim(); }
+function labelFromDate(d){ return d.toLocaleString("en-US", { month: "long", year: "numeric" }); }
+function excelSerialToDate(n){ var base = Date.UTC(1899,11,30); return new Date(base + Number(n)*86400000); }
+
+// Turn any month-ish input (serial, YYYY-MM, YYYY-MM-DD, Date, "Aug 2025", "August") into a canonical label like "August 2025"
+function monthLabel(m){
+  if (m == null) return "";
+  if (typeof m === "number") return labelFromDate(excelSerialToDate(m));
+  var s = String(m).trim();
+  if (s === "") return "";
+  if (/^\d+$/.test(s)) return labelFromDate(excelSerialToDate(parseInt(s,10)));
+  if (/^\d{4}-\d{2}(-\d{2})?$/.test(s)) {
+    var parts = s.split("-");
+    var y = parseInt(parts[0],10), mo = parseInt(parts[1],10)-1, d = parts[2] ? parseInt(parts[2],10) : 1;
+    return labelFromDate(new Date(y, mo, d));
+  }
+  var d2 = new Date(s);
+  if (!isNaN(d2)) return labelFromDate(d2);
+  return s; // already a nice label like "August" or "August 2025"
 }
 
-export const DataProvider = ({ children }) => {
+// Remove a trailing year if present: "August 2025" -> "August"
+function monthNameOnly(lbl){ return String(lbl).replace(/\s+\d{4}$/, ""); }
+
+function canonicalKey(client, month, persona){
+  return norm(client) + "_" + norm(monthLabel(month)) + "_" + norm(persona);
+}
+
+const DataContext = createContext({
+  data: {},
+  updateData: function(){},
+  refresh: function(){},
+  getCounts: function(){ return [0,0,0,0,0,0]; }
+});
+
+export const useData = () => useContext(DataContext);
+
+export function DataProvider({ children }) {
   const [data, setData] = useState({});
 
-  const loadData = async () => {
-    try {
-      const res = await fetch(SHEET_URL);
-      const rows = await res.json();
-      console.log("🧾 Raw rows from Google Sheet:", rows);
-      const newData = {};
+  // Add both strict and fallback keys so UI lookups succeed whether month has a year or not
+  function addRowToMap(map, row){
+    var client = row["Client Name"], monthRaw = row["Month"], persona = row["Persona"];
+    var counts = FIELDS.map(function (f) { return parseInt(row[f], 10) || 0; });
 
-      rows.forEach((row, index) => {
-        const client = row.Client?.trim();
-        const persona = row.Persona?.trim();
-        const weekOf = row["Week of"];
-        let month = row.Month?.trim();
+    var lbl = monthLabel(monthRaw);
+    var keyStrict = norm(client) + "_" + norm(lbl) + "_" + norm(persona);
+    map[keyStrict] = counts;
 
-        if (!client || !persona || !month) {
-          console.warn(`⚠️ Skipping row ${index + 1} — missing fields:`, {
-            client, month, persona
-          });
-          return;
-        }
+    // Fallback: also store a key without the year (e.g., "August")
+    var keyNoYear = norm(client) + "_" + norm(monthNameOnly(lbl)) + "_" + norm(persona);
+    if (!(keyNoYear in map)) map[keyNoYear] = counts;
+  }
 
-        // Try to reformat if month is in numeric form (e.g., Excel serial date)
-        if (!isNaN(month)) {
-          const excelEpoch = new Date(1899, 11, 30);
-          const correctedDate = new Date(excelEpoch.getTime() + month * 86400000);
-          month = correctedDate.toLocaleString("default", { month: "short", year: "numeric" });
-        }
+  function load(){
+    var url = API_URL + "?ts=" + Date.now(); // cache-bust
+    return fetch(url, { headers: { "Cache-Control":"no-cache", "Pragma":"no-cache" } })
+      .then(function(r){ return r.json(); })
+      .then(function(rows){
+        var map = {};
+        for (var i = 0; i < rows.length; i++) addRowToMap(map, rows[i]);
+        setData(map);
+      })
+      .catch(function(e){ console.error("Read error:", e); });
+  }
 
-        const counts = stages.map(stage => Number(row[stage] || 0));
-        const monthKey = `${client}_${month}_${persona}`;
-        const ytdKey = `${client}_YTD_${persona}`;
+  useEffect(function(){
+    load();
+    var id = setInterval(load, 30000);
+    return function(){ clearInterval(id); };
+  }, []);
 
-        // Populate month-level key
-        newData[monthKey] = (newData[monthKey] || Array(stages.length).fill(0)).map(
-          (val, i) => val + counts[i]
-        );
+  async function updateData(clientName, month, persona, counts){
+    // Use canonical month label for writing, so Sheet stores clean strings (not serials)
+    var monthOut = monthLabel(month);
 
-        // If Week of is this year, include in YTD
-        const entryYear = new Date(weekOf).getFullYear();
-        const currentYear = new Date().getFullYear();
-        if (entryYear === currentYear) {
-          newData[ytdKey] = (newData[ytdKey] || Array(stages.length).fill(0)).map(
-            (val, i) => val + counts[i]
-          );
-        }
-      });
-
-      console.log("✅ Final computed keys:", Object.keys(newData));
-      setData(newData);
-    } catch (error) {
-      console.error("❌ Error loading data:", error);
-    }
-  };
-
-  const updateData = async (clientName, month, persona, counts) => {
-    const today = new Date();
-    const weekOf = today.toISOString().split("T")[0];
-
-    const row = {
-      Client: clientName,
-      Persona: persona,
-      "Week of": weekOf,
-      Month: month, // Using value from dropdown
-    };
-
-    stages.forEach((stage, i) => {
-      row[stage] = counts[i];
-    });
-
-    try {
-      console.log("🔄 Sending to Sheet.best:", row);
-      await fetch(SHEET_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(row)
-      });
-      loadData();
-    } catch (error) {
-      console.error("❌ Error saving data:", error);
-    }
-  };
-
-  return (
-    <DataContext.Provider value={{ data, loadData, updateData }}>
-      {children}
-    </DataContext.Provider>
-  );
-};
+    // Update local cache under both keys (with and without year) so UI reflects immediately
+    var keyStrict = norm(clientNa
