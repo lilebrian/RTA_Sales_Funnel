@@ -9,7 +9,7 @@ const months = [
   "Jul 2025", "Aug 2025", "Sep 2025", "Oct 2025", "Nov 2025", "Dec 2025"
 ];
 
-const personas = ["Owners", "Vendor Managers"];
+const personas = ["BioTech High Priority", "BioTech Low Priority", "Sustainability/Greentech High Priority", "Sustainability/Greentech Low Priority"];
 const stages = ["Outreach", "Connections", "Replies", "Meetings", "Proposals", "Contracts"];
 
 function Dashboard({ selectedMonth, selectedPersona, clientName, onMonthChange, onPersonaChange }) {
@@ -129,3 +129,4 @@ export default function App() {
     </div>
   );
 }
+
