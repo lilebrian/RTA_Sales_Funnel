@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-const API_URL = https://api.sheetbest.com/sheets/0475a26b-34a0-4e41-b17d-5e513101983d
+const API_URL = "https://api.sheetbest.com/sheets/0475a26b-34a0-4e41-b17d-5e513101983d";
 const FIELDS = ["Outreach", "Connections", "Replies", "Meetings", "Proposals", "Contracts"];
 
 function norm(v) { return v == null ? "" : String(v).trim(); }
