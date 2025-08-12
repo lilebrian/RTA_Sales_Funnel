@@ -106,7 +106,7 @@ const dropdownStyle = {
 export default function App() {
   const [selectedMonth, setSelectedMonth] = useState("YTD");
   const [selectedPersona, setSelectedPersona] = useState("BioTech High Priority");
-  const clientName = "TeamUp";
+  const clientName = "RTA Consulting";
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#0B111D", color: "white", padding: "2rem" }}>
@@ -129,5 +129,6 @@ export default function App() {
     </div>
   );
 }
+
 
 
