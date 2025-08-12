@@ -11,7 +11,7 @@ const personas = ["BioTech", "Sustainability/Greentech"];
 export default function AdminPanel({ clientName }) {
   const { updateData } = useData();
   const [month, setMonth] = useState("Jun 2025");
-  const [persona, setPersona] = useState("BioTech High Priority");
+  const [persona, setPersona] = useState("BioTech");
   const [counts, setCounts] = useState(Array(stages.length).fill(0));
 
   const handleChange = (index, value) => {
