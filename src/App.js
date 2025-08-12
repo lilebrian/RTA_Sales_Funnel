@@ -105,7 +105,7 @@ const dropdownStyle = {
 
 export default function App() {
   const [selectedMonth, setSelectedMonth] = useState("YTD");
-  const [selectedPersona, setSelectedPersona] = useState("Owners");
+  const [selectedPersona, setSelectedPersona] = useState("BioTech High Priority");
   const clientName = "TeamUp";
 
   return (
@@ -129,4 +129,5 @@ export default function App() {
     </div>
   );
 }
+
 
